@@ -2,10 +2,10 @@ var svgWidth = 800;
 var svgHeight = 500;
 
 var margin = {
-top: 30,
-right: 30,
-bottom: 30,
-left: 30
+top: 20,
+right: 40,
+bottom: 60,
+left: 60
 };
 
 var width = svgWidth - margin.left - margin.right;
@@ -30,46 +30,73 @@ d3.csv("assets/data/data.csv").then(function(censusData) {
     });
 
     var xLinearScale = d3.scaleLinear()
-        .domain([d3.min(censusData, d => d.poverty), d3.max(censusData, d => d.poverty)])
+        .domain(d3.extent(censusData, d => d.poverty))
         .range([0, width]);
 
     var yLinearScale = d3.scaleLinear()
-        .domain([d3.min(censusData, d => d.healthcare), d3.max(censusData, d => d.healthcare)])
+        .domain(d3.extent(censusData, d => d.healthcare))
         .range([height, 0]);
 
     var bottomAxis = d3.axisBottom(xLinearScale);
-    var leftAxis = d3.axisLeft(yLinearScale);
-
-    chartGroup.append("g")
-        .call(leftAxis);
+    var leftAxis = d3.axisLeft(yLinearScale).ticks(12);
 
     chartGroup.append("g")
         .attr("transform", `translate(0, ${height})`)
         .call(bottomAxis);
 
-    chartGroup.selectAll(".dot")
+    chartGroup.append("g")
+        .call(leftAxis);
+
+    chartGroup.append("text")
+    .attr("transform", `translate(${width / 2}, ${height + margin.top + 20})`)
+        .attr("text-anchor", "middle")
+        .attr("font-size", "14px")
+        .attr("font-weight", "bold")
+        .attr("fill", "black")
+        .text("In Poverty (%)");
+
+    chartGroup.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 0 - (margin.left / 2))
+        .attr("x", 0 - (height / 2))
+        .attr("text-anchor", "middle")
+        .attr("font-size", "14px")
+        .attr("font-weight", "bold")
+        .attr("fill", "black")
+        .text("Lacks Healthcare (%)");
+
+    var elemEnter = chartGroup.selectAll("circle")
         .data(censusData)
         .enter()
-        .append("circle")
-        .classed("dot", true)
+        .append("g")
+
+    var circlesGroup = elemEnter.append("circle")
         .attr("cx", d => xLinearScale(d.poverty))
         .attr("cy", d => yLinearScale(d.healthcare))
         .attr("r", 10)
         .attr("fill", "lightblue")
-        .attr("stroke", "white")
+        .attr("stroke", "black")
+
+    elemEnter.append("text")
+        .attr("dx", d => xLinearScale(d.poverty) - 6)
+        .attr("dy", d => yLinearScale(d.healthcare) + 4)
+        .attr("font-size", ".5em")
         .text(d => d.abbr);
 
-    var toolTip = d3.select("body").append("div")
-        .attr("class", "tooltip");
+    var toolTip = d3.tip()
+        .attr("class", "tooltip")
+        .offset([80, -60])
+        .html(function(d) {
+            return(`${d.state}<br/>Healthcare: ${d.healthcare}<br/>Poverty: ${d.poverty}`);
+        });
 
-    chartGroup.on("mouseover", function(d, i) {
-        toolTip.style("display", "block");
-        toolTip.html(`Healthcare: <strong>${censusData[i].healthcare}</strong><hr/>Poverty: <strong>${censusData[i].poverty}</strong>`)
-        .style("left", d3.event.pageX + "px")
-        .style("top", d3.event.pageY + "px");
+    circlesGroup.call(toolTip);
+
+    circlesGroup.on("mouseover", function(d) {
+        toolTip.show(d, this);
     })
-        .on("mouseout", function() {
-        toolTip.style("display", "none");
+        .on("mouseout", function(d) {
+            toolTip.hide(d);
         });
 
 }).catch(function(error) {
